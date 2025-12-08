@@ -82,6 +82,43 @@ cross join lateral (
 	from result r
 	where r.input = i.input
 	and (select count(*) from each(r.graph)) = i.points
+	and (select count(*) from (
+			with recursive connection as (
+				select *
+				from (
+					select a.x ax, a.y ay, a.z az, b.x bx, b.y by, b.z bz, rank() over (partition by a.input order by (a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y) + (a.z-b.z)*(a.z-b.z) asc) rank
+					from day8 a
+					join day8 b on (a.x, a.y, a.z) < (b.x, b.y, b.z)
+					where a.input = i.input
+					and b.input = i.input
+				)
+				where rank <= r.i
+			),
+			connection_bidi as (
+				select ax, ay, az, bx, by, bz
+				from connection
+				union all
+				select bx, by, bz, ax, ay, az
+				from connection
+			),
+			graph as (
+				select x, y, z, x||'/'||y||'/'||z graph  -- use the start node as unique graph id
+				from day8
+				where input = i.input
+				union
+				select c.bx, c.by, c.bz, r.graph
+				from graph r
+				join connection_bidi c on c.ax = r.x and c.ay = r.y and c.az = r.z
+			),
+			graph_unique as (
+				select distinct array_agg((x, y, z) order by x, y, z) points
+				from graph
+				group by graph
+			)
+			select *
+			from graph_unique
+			limit 2
+	)) = 1
 	order by r.input, r.i
 	limit 1
 ) r
