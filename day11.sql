@@ -102,7 +102,6 @@ result as (
 	select *
 	from path p
 	where p.depth = (select max(depth) from path)
-	order by node
 )
 select
 	i.input,
